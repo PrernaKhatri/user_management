@@ -3,6 +3,9 @@ const response = require("../common/response");
 const Joi = require("joi");
 const path = require("path");
 const fs = require("fs");
+const { deleteDegreePictureFile } =
+  require("../common/deleteDegree.helper");
+
 
 //Get education
 exports.getUserEducation = async(req,res) =>{
@@ -36,20 +39,37 @@ exports.getUserEducation = async(req,res) =>{
 }
 
 //Add education
-const educationSchema = Joi.object({
-  education_level : Joi.string().trim().min(2).required(),
-  institution_name : Joi.string().trim().min(2).required(),
-  passing_year : Joi.number().integer().max(new Date().getFullYear()).required(),
-  percentage : Joi.number().min(0).max(100).required()
-})
+// const educationSchema = Joi.object({
+//   education_level : Joi.string().trim().min(2).required(),
+//   institution_name : Joi.string().trim().min(2).required(),
+//   passing_year : Joi.number().integer().max(new Date().getFullYear()).required(),
+//   percentage : Joi.number().min(0).max(100).required()
+// })
 
 exports.addEducation = async(req,res) =>{
   try{
-    const user_id = req.params.user_id;
+    const {user_id} = req.params;
 
-    if(!user_id || isNaN(user_id)){
-      return response.error(res,400,"Invalid user id");
-    }
+    // if(!user_id || isNaN(user_id)){
+    //   return response.error(res,400,"Invalid user id");
+    // }
+
+    // const [user] = await db.execute("select user_id from users where user_id = ?",[user_id]);
+
+    // if(user.length === 0){
+    //   return response.error(res,404,"User not found.");
+    // }
+
+    // const {error,value} = educationSchema.validate(req.body,{
+    //   abortEarly:false
+    // });
+
+    // if(error){
+    //   const messages = error.details.map(d => d.message);
+    //   return response.error(res,400,messages);
+    // }
+
+    const{education_level,institution_name,passing_year,percentage} = req.body;
 
     const [user] = await db.execute("select user_id from users where user_id = ?",[user_id]);
 
@@ -57,21 +77,10 @@ exports.addEducation = async(req,res) =>{
       return response.error(res,404,"User not found.");
     }
 
-    const {error,value} = educationSchema.validate(req.body,{
-      abortEarly:false
-    });
-
-    if(error){
-      const messages = error.details.map(d => d.message);
-      return response.error(res,400,messages);
-    }
-
-    const{education_level,institution_name,passing_year,percentage} = value;
-
     const insertQuery = `Insert into user_education(user_id,education_level, institution_name, passing_year, percentage) values(?,?,?,?,?)`;
 
     const [result] = await db.execute(insertQuery,[user_id,
-    education_level,institution_name,passing_year,percentage ||null]);
+    education_level,institution_name,passing_year,percentage]);
 
     return response.created(res,"Education added sucessfully",{education_id: result.insertId});
   }
@@ -82,22 +91,23 @@ exports.addEducation = async(req,res) =>{
 }
 
 //Update education
-const allowedFields = ["education_level", "institution_name", "passing_year","percentage"];
+// const allowedFields = ["education_level", "institution_name", "passing_year","percentage"];
 
-const updateEducationSchema = Joi.object({
-  education_level: Joi.string().trim().min(2).optional(),
-  institution_name: Joi.string().trim().min(2).optional(),
-  passing_year: Joi.number().integer().max(new Date().getFullYear()).optional(),
-  percentage: Joi.number().min(0).max(100).optional()
-}).unknown(false);
+// const updateEducationSchema = Joi.object({
+//   education_level: Joi.string().trim().min(2).optional(),
+//   institution_name: Joi.string().trim().min(2).optional(),
+//   passing_year: Joi.number().integer().max(new Date().getFullYear()).optional(),
+//   percentage: Joi.number().min(0).max(100).optional()
+// }).unknown(false);
 
 exports.updateEducation = async (req, res) => {
   try {
     const { education_id } = req.params;
+    const updateData = req.body;
 
-    if (!education_id || isNaN(education_id)) {
-      return response.error(res, 400, "Invalid education id");
-    }
+    // if (!education_id || isNaN(education_id)) {
+    //   return response.error(res, 400, "Invalid education id");
+    // }
 
     const [existing] = await db.execute("SELECT education_id FROM user_education WHERE education_id = ?",[education_id]);
 
@@ -105,32 +115,12 @@ exports.updateEducation = async (req, res) => {
       return response.error(res, 404, "Education record not found");
     }
 
-    if (!req.body || Object.keys(req.body).length === 0) {
-      return response.error(res, 400, "No fields provided to update");
-    }
-
-    const invalidFields = Object.keys(req.body).filter(
-      key => !allowedFields.includes(key)
-    );
-
-    if (invalidFields.length > 0) {return response.error(res,400,
-    invalidFields.map(f => `Invalid field: ${f}`));
-    }
-
-    const { error, value } = updateEducationSchema.validate(req.body, {
-      abortEarly: true
-    });
-
-    if (error) {const messages = error.details.map(d =>d.message);
-    return response.error(res, 400, messages);
-    }
-
     const fields = [];
     const values = [];
 
-    Object.keys(value).forEach(key => {
+    Object.keys(updateData).forEach(key => {
       fields.push(`${key} = ?`);
-      values.push(value[key]);
+      values.push(updateData[key]);
     });
 
     const updateQuery = `UPDATE user_education SET ${fields.join(", ")} WHERE education_id = ?`;
@@ -151,18 +141,25 @@ exports.deleteEducation = async (req, res) => {
   try {
     const { education_id } = req.params;
 
-    if (!education_id || isNaN(education_id)) {
-      return response.error(res, 400, "Invalid education id");
-    }
+    // if (!education_id || isNaN(education_id)) {
+    //   return response.error(res, 400, "Invalid education id");
+    // }
 
-    const [result] = await db.execute(
-      "DELETE FROM user_education WHERE education_id = ?",
+    const [education] = await db.execute(
+      "SELECT degree_picture FROM user_education WHERE education_id = ?",
       [education_id]
     );
 
-    if (result.affectedRows === 0) {
+    if (education.length === 0) {
       return response.error(res, 404, "Education record not found");
     }
+
+    deleteDegreePictureFile(education[0].degree_picture);
+
+    await db.execute(
+      "DELETE FROM user_education WHERE education_id = ?",
+      [education_id]
+    );
 
     return response.success(res, "Education deleted successfully");
 
@@ -177,13 +174,13 @@ exports.uploadDegreePicture = async (req, res) => {
   try {
     const { user_id, education_id } = req.params;
 
-    if (!user_id || isNaN(user_id)) {
-      return response.error(res, 400, "Invalid user id");
-    }
+    // if (!user_id || isNaN(user_id)) {
+    //   return response.error(res, 400, "Invalid user id");
+    // }
 
-    if (!education_id || isNaN(education_id)) {
-      return response.error(res, 400, "Invalid education id");
-    }
+    // if (!education_id || isNaN(education_id)) {
+    //   return response.error(res, 400, "Invalid education id");
+    // }
 
     if (!req.file) {
       return response.error(res, 400, "Degree picture is required");
@@ -199,14 +196,16 @@ exports.uploadDegreePicture = async (req, res) => {
 
     const oldDegreePicture = rows[0].degree_picture;
 
-    if (oldDegreePicture) {
-      const oldPath = path.join(__dirname, "..", oldDegreePicture);
-      if (fs.existsSync(oldPath)) {
-        fs.unlink(oldPath, err => {
-          if (err) console.error("Old degree delete error:", err.message);
-        });
-      }
-    }
+    // if (oldDegreePicture) {
+    //   const oldPath = path.join(__dirname, "..", oldDegreePicture);
+    //   if (fs.existsSync(oldPath)) {
+    //     fs.unlink(oldPath, err => {
+    //       if (err) console.error("Old degree delete error:", err.message);
+    //     });
+    //   }
+    // }
+
+    deleteDegreePictureFile(oldDegreePicture);
 
     const newDegreePath = `uploads/degree_pictures/${req.file.filename}`;
 
@@ -228,17 +227,16 @@ exports.deleteDegreePicture = async (req, res) => {
   try {
     const { user_id, education_id } = req.params;
 
-    if (!user_id || isNaN(user_id)) {
-      return response.error(res, 400, "Invalid user id");
-    }
+    // if (!user_id || isNaN(user_id)) {
+    //   return response.error(res, 400, "Invalid user id");
+    // }
 
-    if (!education_id || isNaN(education_id)) {
-      return response.error(res, 400, "Invalid education id");
-    }
+    // if (!education_id || isNaN(education_id)) {
+    //   return response.error(res, 400, "Invalid education id");
+    // }
 
     const [rows] = await db.execute(
-      `SELECT degree_picture
-       FROM user_education
+      `SELECT degree_picture FROM user_education
        WHERE education_id = ? AND user_id = ?`,
       [education_id, user_id]
     );
@@ -253,20 +251,19 @@ exports.deleteDegreePicture = async (req, res) => {
       return response.error(res, 400, "Degree picture does not exist");
     }
 
-    const filePath = path.join(__dirname, "..", "upload","degree_pictures",path.basename(degreePicture));
+    // const filePath = path.join(__dirname, "..", "upload","degree_pictures",path.basename(degreePicture));
 
-    if (fs.existsSync(filePath)) {
-      // fs.unlink(filePath, (err) => {
-      //   if (err) {
-      //     console.error("Degree picture delete error:", err.message);
-      //   }
-      // });
-      fs.unlinkSync(filePath);
-    }
+    // if (fs.existsSync(filePath)) {
+    //   // fs.unlink(filePath, (err) => {
+    //   //   if (err) {
+    //   //     console.error("Degree picture delete error:", err.message);
+    //   //   }
+    //   // });
+    //   fs.unlinkSync(filePath);
+    // }
 
     await db.execute(
-      `UPDATE user_education
-       SET degree_picture = NULL
+      `UPDATE user_education SET degree_picture = NULL
        WHERE education_id = ? AND user_id = ?`,
       [education_id, user_id]
     );

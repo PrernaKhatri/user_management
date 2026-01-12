@@ -1,10 +1,11 @@
-// console.log("education route is running")
+// console.log("Education routes loaded");
 
 const express = require("express");
 const router = express.Router();
-
 const educationController = require("../controllers/educationController");
-
+const {createEducationSchema,updateEducationSchema,userIdParamSchema,educationIdParamSchema,userEducationParamSchema 
+} = require("../common/validations/education.validation");
+const validate = require("../middleware/validate.middleware");
 const createUploader = require("../middleware/upload.middleware");
 
 const uploadDegreePicture = createUploader({
@@ -16,17 +17,20 @@ const uploadDegreePicture = createUploader({
 router.get("/users/:user_id/education", educationController.getUserEducation);
 
 // Add education 
-router.post("/users/:user_id/education", educationController.addEducation);
+router.post("/users/:user_id/education",validate(userIdParamSchema, "params"),validate(createEducationSchema,"body"),
+educationController.addEducation);
 
 // Update education
-router.patch("/education/:education_id", educationController.updateEducation);
+router.patch(
+  "/education/:education_id",validate(educationIdParamSchema, "params"),validate(updateEducationSchema),educationController.updateEducation);
 
 // Delete education
 router.delete("/education/:education_id", educationController.deleteEducation);
 
-//Uplooad/Update degree picture
+//Upload/Update degree picture
 router.patch(
-  "/users/:user_id/education/:education_id/degree_picture",
+  "/education/:education_id/degree_picture",
+  validate(educationIdParamSchema, "params"),
   uploadDegreePicture,
   educationController.uploadDegreePicture
 );

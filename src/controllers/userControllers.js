@@ -3,6 +3,10 @@ const response = require("../common/response");
 const Joi = require("joi");
 const fs = require("fs");
 const path = require("path");
+const { deleteProfilePictureFile } = require("../common/deleteProfile.helper");
+// const fileurl = require("../common/fileUrl.helper");
+// const { buildImageUrl } = require("../common/fileUrl.helper");
+
 
 //Get all users
 exports.getAllUsers = async (req, res) => {
@@ -21,6 +25,7 @@ exports.getAllUsers = async (req, res) => {
 };
 
 //Get user by id
+// const baseUrl = `${req.protocol}://${req.get("host")}`;
 exports.getUserById = async(req, res) => {
   try{
     const user_id = req.params.user_id; //Url me se user_id extract krna
@@ -33,8 +38,15 @@ exports.getUserById = async(req, res) => {
     if(rows.length == 0){
       return response.error(res,404,`No user with ID ${user_id} is available.`)
     }
-    return response.success(res,`Data fetched for user ${user_id}.`,rows[0]); //Here, we have used users[0] because if we use 'users' only, then it will return output in the form of array with one object but for single entry frontend does not expect an array.
-  }
+
+    const user = rows[0];
+    
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+
+    user.profile_picture = buildImageUrl(baseUrl,user.profile_picture);
+
+    return response.success(res,`Data fetched for user ${user_id}.`,user); //Here, we have used users[0] because if we use 'users' only, then it will return output in the form of array with one object but for single entry frontend does not expect an array.
+  } 
   catch(error){
     console.log(error);
     return response.error(res,500,"Internal server error.");
@@ -91,7 +103,6 @@ exports.updateUser = async (req,res) =>{
 };
 
 //To delete the user
-const { deleteProfilePictureFile } = require("../common/deleteProfile.helper");
 exports.deleteUser = async (req, res) => {
   try {
     const {user_id} = req.params;
@@ -121,9 +132,9 @@ exports.updateProfilePicture = async(req,res) => {
   try{
   
     const{user_id} = req.params;
-    if (!user_id || isNaN(user_id)) {
-    return response.error(res, 400, "Invalid user id");
-    }    
+    // if (!user_id || isNaN(user_id)) {
+    // return response.error(res, 400, "Invalid user id");
+    // }    
 
     if (!req.file) {
       return response.error(res,400,"Profile picture is required");
@@ -140,22 +151,13 @@ exports.updateProfilePicture = async(req,res) => {
 
     const oldProfile = users[0].profile_picture;
 
-       if (oldProfile) {
-      const oldPath = path.join(__dirname, "..", oldProfile);
-
-      if (fs.existsSync(oldPath)) {
-        fs.unlink(oldPath, (err) => {
-          if (err) {
-            console.error("Error deleting old profile:", err.message);
-          }
-        });
-      }
-    }
+    deleteProfilePictureFile(oldProfile);
     const newProfilePath = `uploads/profile_pictures/${req.file.filename}`;
     await db.execute("UPDATE users SET profile_picture = ? WHERE user_id= ?",[newProfilePath, user_id]);
 
+    // const profilePictureUrl = getFileUrl(req,newProfilePath);
     return response.success(res,oldProfile? "Profile picture updated successfully": "Profile picture uploaded successfully",{
-        profile_picture: newProfilePath}
+        profile_picture: profilePictureUrl}
     );
   }
   catch(error){
