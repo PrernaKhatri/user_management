@@ -1,7 +1,6 @@
-function getUrl(req, relativePath) {
-    if (!relativePath) return null;
-    return `${req.protocol}://${req.get("host")}/${relativePath}`;
-  }
+exports.buildImageUrl = (baseUrl, filePath) => {
+    if (!filePath) return null;
   
-  module.exports = { getUrl };
+    return `${baseUrl}/${filePath.replace(/\\/g, "/")}`;
+  };
   
