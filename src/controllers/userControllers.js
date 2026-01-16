@@ -1,22 +1,32 @@
-const db = require("../config/db");
+// const db = require("../config/db");
+const User = require("../models/User");
 const response = require("../common/response");
 const Joi = require("joi");
 const fs = require("fs");
 const path = require("path");
 const { deleteProfilePictureFile } = require("../common/deleteProfile.helper");
-// const fileurl = require("../common/fileUrl.helper");
-// const { buildImageUrl } = require("../common/fileUrl.helper");
-
+const { buildImageUrl } = require("../common/fileUrl.helper");
+const sequelize = require("../config/sequelize");
+console.log("USER MODEL:", User);
+const upload = require("../common/uploadConstants");
 
 //Get all users
 exports.getAllUsers = async (req, res) => {
   try {
-    const query = "SELECT * FROM users";
-    const [rows] = await db.execute(query);
-    if (rows.length === 0) {
+    const rows = await User.findAll();
+
+    if (!rows || rows.length === 0) {
       return response.error(res, 404, "No users found");
     }
-    return response.success(res,"Users fetched successfully",rows);
+
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+
+    const users = rows.map(user => ({
+      ...user.toJSON(), // convert Sequelize object to plain JS
+      profile_picture: buildImageUrl(baseUrl, upload.profile,user.profile_picture)
+    }));
+
+    return response.success(res, "Users fetched successfully", users);
   } 
   catch (error) {
     console.error(error);
@@ -29,23 +39,30 @@ exports.getAllUsers = async (req, res) => {
 exports.getUserById = async(req, res) => {
   try{
     const user_id = req.params.user_id; //Url me se user_id extract krna
-    if(!user_id || isNaN(user_id)){
-      return response.error(res,400,"Invalid user id");
-    }
-    const query = "select * from users where user_id = ?";
-    const [rows] = await db.execute(query,[user_id]);
+    // if(!user_id || isNaN(user_id)){
+    //   return response.error(res,400,"Invalid user id");
+    // }
+    // const query = "select * from users where user_id = ?";
+    // const [rows] = await db.execute(query,[user_id]);
 
-    if(rows.length == 0){
+    const user = await User.findOne({
+      where: { user_id }
+    });
+    if(!user){
       return response.error(res,404,`No user with ID ${user_id} is available.`)
     }
 
-    const user = rows[0];
+    // const user = rows[0];
     
     const baseUrl = `${req.protocol}://${req.get("host")}`;
 
-    user.profile_picture = buildImageUrl(baseUrl,user.profile_picture);
+    // user.profile_picture = buildImageUrl(baseUrl,user.profile_picture);
+    const userData = {
+      ...user.toJSON(),
+      profile_picture: buildImageUrl(baseUrl,upload.profile, user.profile_picture)
+    };
 
-    return response.success(res,`Data fetched for user ${user_id}.`,user); //Here, we have used users[0] because if we use 'users' only, then it will return output in the form of array with one object but for single entry frontend does not expect an array.
+    return response.success(res,`Data fetched for user ${user_id}.`,userData); 
   } 
   catch(error){
     console.log(error);
@@ -54,19 +71,33 @@ exports.getUserById = async(req, res) => {
 };
 
 //Add user
-
 exports.addUser = async(req,res) =>{
   try{
     
     const{name,email,phone,role,joining_date} = req.body;
-    const [existingUser] = await db.execute("SELECT user_id FROM users WHERE email = ?",[email]);
-    if (existingUser.length > 0) {
+
+    const profile_picture = req.file ? req.file.filename : null;
+
+    const existingUser = await User.findOne({
+      where: { email }
+    });
+
+    if (existingUser) {
+    deleteProfilePictureFile(profile_picture);
     return response.error(res, 409, "Email already exists");
     }
-    const insertQuery = `INSERT INTO users (name, email, phone, role, joining_date) VALUES (?, ?, ?, ?, ?)`;
-    const [result] = await db.execute(insertQuery, [name,email,phone,role,joining_date]);
-    return response.created(res, "User created successfully", {user_id: result.insertId});
+
+    const newUser = await User.create({name,email,phone,role,
+    joining_date,profile_picture});
+
+    // const insertQuery = `INSERT INTO users (name, email, phone, role, joining_date, profile_picture) VALUES (?, ?, ?, ?, ?, ?)`;
+
+    // const [result] = await db.execute(insertQuery, [name,email,phone,role,joining_date, profile_picture]);
+
+    return response.created(res, "User created successfully", {user_id: newUser.user_id});
+
     } catch (err) {
+      deleteProfilePictureFile(req.file?.filename);
       console.error(err);
       return response.error(res, 500, "Internal server error");
     }
@@ -79,22 +110,24 @@ exports.updateUser = async (req,res) =>{
     const { user_id }= req.params;
     const updateData = req.body;
 
-    const fields = [];
-    const values = [];
+    if (Object.keys(updateData).length === 0) {
+      return response.error(res, 400, "No data provided to update");
+    }
 
-     Object.keys(updateData).forEach(key => {
-      fields.push(`${key} = ?`);
-      values.push(updateData[key]);
+    const user = await User.findOne({
+      where: { user_id }
     });
 
-    const updateQuery = `UPDATE users set ${fields.join(", ")} where user_id = ?`;
-
-    const [result] = await db.execute(updateQuery,[...values,user_id]);
-
-    if(result.affectedRows === 0){
-      return response.error(res,404,"User not found");
+    if (!user) {
+      return response.error(res, 404, "User not found");
     }
+
+    await User.update(updateData, {
+      where: { user_id }
+    });
+
     return response.success(res,"User updated successfully");
+    
   }
   catch(err){
       console.error(err);
@@ -107,21 +140,23 @@ exports.deleteUser = async (req, res) => {
   try {
     const {user_id} = req.params;
 
-    const [users] = await db.execute("select profile_picture FROM users WHERE user_id = ?",[user_id]);
+    const user = await User.findOne({
+      where: { user_id }
+    });
 
-    if (users.length === 0) {
+    if (!user) {
       return response.error(res, 404, "User not found");
     }
 
-    deleteProfilePictureFile(users[0].profile_picture);
+    deleteProfilePictureFile(user.profile_picture);
 
-    await db.execute(
-      "DELETE FROM users WHERE user_id = ?",
-      [user_id]
-    );
+    await User.destroy({
+      where: { user_id }
+    });
+
     return response.success(res, "User deleted successfully");
-
-  } catch (error) {
+  } 
+  catch (error) {
     console.error(error);
     return response.error(res, 500, "Internal server error");
   }
@@ -140,20 +175,28 @@ exports.updateProfilePicture = async(req,res) => {
       return response.error(res,400,"Profile picture is required");
     }
 
-     const [users] = await db.execute(
-      "SELECT profile_picture FROM users WHERE user_id = ?",
-      [user_id]
-    );
+    const user = await User.findOne({
+      where: { user_id }
+    });
 
-    if (users.length === 0) {
+    if (!user) {
       return response.error(res,404,"User not found");
     }
 
-    const oldProfile = users[0].profile_picture;
+    const oldProfile = user.profile_picture;
 
     deleteProfilePictureFile(oldProfile);
-    const newProfilePath = `uploads/profile_pictures/${req.file.filename}`;
-    await db.execute("UPDATE users SET profile_picture = ? WHERE user_id= ?",[newProfilePath, user_id]);
+
+    const ProfilePath = req.file.filename;
+
+    await User.update(
+      { profile_picture: ProfilePath},
+      { where: { user_id } }
+    );
+
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+
+    const profilePictureUrl = buildImageUrl(baseUrl, upload.profile, ProfilePath);
 
     // const profilePictureUrl = getFileUrl(req,newProfilePath);
     return response.success(res,oldProfile? "Profile picture updated successfully": "Profile picture uploaded successfully",{
@@ -170,19 +213,24 @@ exports.deleteProfilePicture = async(req,res) => {
   try{
     const{user_id} = req.params;
 
-    const [users] = await db.execute("SELECT profile_picture FROM users WHERE user_id = ?",[user_id]);
+    const user = await User.findOne({
+      where: { user_id }
+    });
 
-     if (users.length === 0) {
+     if (!user) {
       return response.error(res, 404, "User not found");
     }
     
-    if (!users[0].profile_picture) {
+    if (!user.profile_picture) {
       return response.error(res, 400, "Profile picture does not exist");
     }
 
-    deleteProfilePictureFile(users[0].profile_picture);
+    deleteProfilePictureFile(user.profile_picture);
 
-    await db.execute("UPDATE users SET profile_picture = NULL WHERE user_id = ?",[user_id]);
+    await User.update(
+      { profile_picture: null },
+      { where: { user_id } }
+    );
 
      return response.success(res,"Profile picture deleted successfully");
   }

@@ -16,7 +16,7 @@ const createUploader = ({folder, fieldName}) =>{
     filename: (req,file,cb) => {
         const ext = path.extname(file.originalname);
         const id = req.params.education_id || req.params.user_id || "file";
-        cb(null, `${id}_${Date.now()}${ext}`);
+        cb(null, `user_${id}_${Date.now()}${ext}`);
         //In the above line the out put may be like :
         //user_5_174030288.png here date is used because if any user reuploads the same file but will considered different because we have took current time.
     }

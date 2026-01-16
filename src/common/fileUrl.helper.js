@@ -1,6 +1,6 @@
-exports.buildImageUrl = (baseUrl, filePath) => {
+exports.buildImageUrl = (baseUrl, folder, filePath) => {
     if (!filePath) return null;
   
-    return `${baseUrl}/${filePath.replace(/\\/g, "/")}`;
-  };
+    return `${baseUrl}/uploads/${folder}/${filePath.replace(/\\/g, "/")}`;
+};
   

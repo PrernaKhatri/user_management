@@ -13,7 +13,7 @@ app.use(express.json());
 // const logger = require("./middleware/ValidateUser");
 // app.use(logger); 
 
-// app.use("/uploads", express.static("src/uploads"));
+// app.use("/uploads", express.static("uploads"));
 app.use("/uploads", express.static(path.join(__dirname,"uploads")));
 
 const userRoutes = require("./routes/userRoutes");

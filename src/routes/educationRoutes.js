@@ -3,7 +3,12 @@
 const express = require("express");
 const router = express.Router();
 const educationController = require("../controllers/educationController");
-const {createEducationSchema,updateEducationSchema,userIdParamSchema,educationIdParamSchema,userEducationParamSchema 
+const {
+  createEducationSchema,
+  updateEducationSchema,
+  userIdParamSchema,
+  educationIdParamSchema,
+  userEducationParamSchema
 } = require("../common/validations/education.validation");
 const validate = require("../middleware/validate.middleware");
 const createUploader = require("../middleware/upload.middleware");
@@ -14,10 +19,10 @@ const uploadDegreePicture = createUploader({
 });
 
 // Get all education of a user
-router.get("/users/:user_id/education", educationController.getUserEducation);
+router.get("/users/:user_id/education", validate(userIdParamSchema, "params"),educationController.getUserEducation);
 
 // Add education 
-router.post("/users/:user_id/education",validate(userIdParamSchema, "params"),validate(createEducationSchema,"body"),
+router.post("/users/:user_id/education",validate(userIdParamSchema, "params"),validate(createEducationSchema),uploadDegreePicture,
 educationController.addEducation);
 
 // Update education

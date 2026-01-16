@@ -5,7 +5,7 @@ const deleteProfilePictureFile = (profilePicturePath) => {
   if (!profilePicturePath) return;
 
   const filePath = path.join(__dirname,"..",
-  "upload","profile_pictures",
+  "uploads","profile_pictures",
     path.basename(profilePicturePath)
   );
 

@@ -13,9 +13,9 @@ const uploadProfilePicture = createUploader({
 
 router.get("/users", userController.getAllUsers);
 
-router.get("/users/:user_id", userController.getUserById);
+router.get("/users/:user_id", validate(userIdParamSchema, "params"),userController.getUserById);
 
-router.post("/users", validate(createUserSchema),userController.addUser);
+router.post("/users", uploadProfilePicture, validate(createUserSchema),userController.addUser);
 
 router.patch("/users/:user_id", validate(userIdParamSchema, "params"),
   validate(updateUserSchema, "body"),userController.updateUser);
