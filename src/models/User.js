@@ -42,9 +42,20 @@ const User = sequelize.define(
     },
   },
   {
-    tableName: "users",   // must match your existing table name
-    timestamps: false,    // because you didn’t mention createdAt/updatedAt
+    tableName: "users",
+    timestamps: false,
   }
 );
+
+User.relations = (models) => {
+  User.hasMany(models.UserEducation, {
+    foreignKey: "user_id",
+    as: "educations",
+  });
+  User.hasMany(models.Experience, {
+    foreignKey: "user_id",
+    as: "experiences",
+  });
+};
 
 module.exports = User;

@@ -41,9 +41,17 @@ const UserEducation = sequelize.define(
     },
   },
   {
-    tableName: "user_education",
+    tableName: "user_education", //can be skipped
     timestamps: false,
   }
 );
+
+UserEducation.relations = (models) => {
+
+  UserEducation.belongsTo(models.User, {
+    foreignKey: "user_id",
+  });
+
+};
 
 module.exports = UserEducation;

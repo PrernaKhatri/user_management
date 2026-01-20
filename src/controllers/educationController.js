@@ -1,12 +1,12 @@
 // const db = require("../config/db");
-const UserEducation = require("../models/User_Education");
+// const Joi = require("joi");
+// const path = require("path");
+// const fs = require("fs");
+
+const UserEducation = require("../models/UserEducation");
 const User = require("../models/User");
 const response = require("../common/response");
-const Joi = require("joi");
-const path = require("path");
-const fs = require("fs");
-const { deleteDegreePictureFile } =
-  require("../common/deleteDegree.helper");
+const { deleteFile } = require("../common/deleteImage.helper");
 const { buildImageUrl } = require("../common/fileUrl.helper");
 const upload = require("../common/uploadConstants");
 
@@ -17,9 +17,6 @@ exports.getUserEducation = async(req,res) =>{
 
     const user_id = req.params.user_id;
 
-    // if(!user_id||isNaN(user_id)){
-    //   return response.error(res,400,"Invalid user ID");
-    // }
     const user = await User.findOne({
       where: { user_id }
     });
@@ -32,19 +29,13 @@ exports.getUserEducation = async(req,res) =>{
       where: { user_id }
     });
 
-    // const query = "select * from user_education where user_id = ?";
-
-    // const [education] = await db.execute(query,[user_id]);
-
     if(!education ||education.length === 0){
       return response.success(res,"No education details found for the user",[]);
     }
 
-    const baseUrl = `${req.protocol}://${req.get("host")}`;
-
     const result = education.map(item =>({
       ...item.toJSON(),
-      degree_picture: buildImageUrl(baseUrl,upload.degree,item.degree_picture)
+      degree_picture: buildImageUrl(req.baseUrlFull,upload.degree,item.degree_picture)
     }));
 
     return response.success(res,"Education details fetched successfully!",result);
@@ -59,10 +50,6 @@ exports.getUserEducation = async(req,res) =>{
 exports.addEducation = async(req,res) =>{
   try{
     const {user_id} = req.params;
-
-    // if (!req.body) {
-    //   return response.error(res, 400, "Request body is missing");
-    // }
 
     const user = await User.findOne({
       where: { user_id }
@@ -126,7 +113,7 @@ exports.deleteEducation = async (req, res) => {
       return response.error(res, 404, "Education record not found");
     }
 
-    deleteDegreePictureFile(education.degree_picture);
+    deleteFile(upload.degree,education.degree_picture);
 
     await UserEducation.destroy({
       where: { education_id }
@@ -157,32 +144,27 @@ exports.uploadDegreePicture = async (req, res) => {
       return response.error(res, 404, "Education record not found");
     }
 
-    const oldDegreePicture = education.degree_picture;
+    const oldDegree = education.degree_picture;
 
-    deleteDegreePictureFile(oldDegreePicture);
+    deleteFile(upload.degree,oldDegree);
+
+    const degreePath = req.file.filename;
 
     await UserEducation.update(
-      { degree_picture: req.file.filename },
+      { degree_picture: degreePath },
       { where: { education_id } }
     );
 
-    const baseUrl = `${req.protocol}://${req.get("host")}`;
 
     const degreePictureUrl = buildImageUrl(
-      baseUrl,upload.degree,req.file.filename
+      req.baseUrlFull,upload.degree,degreePath
     );
 
-    // const newDegreePath = `uploads/degree_pictures/${req.file.filename}`;
-
-    // await db.execute(`UPDATE user_education SET degree_picture = ?
-    //    WHERE education_id = ?`,[newDegreePath, education_id]);
-
     return response.success(
-      res,oldDegreePicture? "Degree picture updated successfully"
+      res,oldDegree? "Degree picture updated successfully"
         : "Degree picture uploaded successfully",{ degree_picture: degreePictureUrl }
     );
   } catch (error) {
-    // console.error(error);
     return response.error(res, 500, "Internal server error");
   }
 };
@@ -190,12 +172,11 @@ exports.uploadDegreePicture = async (req, res) => {
 //Delete degree
 exports.deleteDegreePicture = async (req, res) => {
   try {
-    const { user_id, education_id } = req.params;
+    const { education_id } = req.params;
 
     const education = await UserEducation.findOne({
       where: {
-        education_id,
-        user_id
+        education_id
       }
     });
 
@@ -207,17 +188,13 @@ exports.deleteDegreePicture = async (req, res) => {
       return response.error(res, 400, "Degree picture does not exist");
     }
 
-    // if (rows.length === 0) {
-    //   return response.error(res, 404, "Education record not found");
-    // }
-
-    deleteDegreePictureFile(education.degree_picture);
+    deleteFile(upload.degree,education.degree_picture);
 
     await UserEducation.update(
       { degree_picture: null },
       {
         where: {
-          education_id,user_id
+          education_id
         }
       }
     );

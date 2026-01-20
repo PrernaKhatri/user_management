@@ -42,7 +42,7 @@ router.patch(
 
 // Delete degree picture only
 router.delete(
-  "/users/:user_id/education/:education_id/degree_picture",
+  "/education/:education_id/degree_picture",
   educationController.deleteDegreePicture
 );
 
