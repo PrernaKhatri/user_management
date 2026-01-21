@@ -16,55 +16,166 @@ const { User, UserEducation,Experience, Project} = sequelize.models;
 
 
 //Get all users
+// exports.getAllUsers = async (req, res) => {
+//   try {
+//     const rows = await User.findAll({
+      
+//       include:[{
+//         model : UserEducation,
+//         as: "educations",
+//         attributes : {exclude : ["user_id"]},
+//         separate: true,
+//         required: false, 
+//       },
+//       {
+//         model: Experience,
+//         as: "experiences",
+//         separate: true,
+//         required: false,
+//         attributes:{exclude:["user_id"]},    
+//         include:{
+//           model: Project,
+//           as: "projects",
+//           separate: true, 
+//           required:false, 
+//           attributes:{exclude:["exp_id","project_id"]}         
+//         }
+//       }],
+//       logging : console.log
+//     });
+
+//     if (!rows || rows.length === 0) {
+//       return response.error(res, 404, "No users found");
+//     }
+
+//     const users = rows.map(user => ({
+//       ...user.toJSON(), // convert Sequelize object to plain JS
+//       profile_picture: buildImageUrl(req.baseUrlFull, upload.profile,user.profile_picture)
+//     }));
+
+//     return response.success(res, "Users fetched successfully", users);
+//   }
+//   catch (error) {
+//     console.error(error);
+//     return response.error(res, 500, "Internal server error");
+//   }
+// };
+
+
 exports.getAllUsers = async (req, res) => {
   try {
-    const rows = await User.findAll({
-      
-      include:[{
-        model : UserEducation,
-        as: "educations",
-        attributes : {exclude : ["user_id"]},
-        separate: true,
-        required: false, 
-      },
-      {
-        model: Experience,
-        as: "experiences",
-        separate: true,
-        required: false,
-        attributes:{exclude:["user_id"]},    
-        include:[{
-          model: Project,
-          as: "projects",
-          separate: true, 
-          required:false, 
-          attributes:{exclude:["exp_id","project_id"]}         
-        }]
-      }],
-      logging : console.log
-    });
+
+    const page = parseInt(req.query.page);
+    const limit = parseInt(req.query.limit);
+    const isPagination = !isNaN(page) && !isNaN(limit);
+
+    const search = req.query.search?.trim();
+
+    const sortBy = req.query.sortBy || "user_id";
+    const order = req.query.order === "ASC" ? "ASC" : "DESC";
+
+    const sortableFields = ["user_id", "name", "email", "role", "joining_date"];
+    const safeSortBy = sortableFields.includes(sortBy) ? sortBy : "user_id";
+
+    let whereCondition = {};
+    if (search) {
+      whereCondition = {
+        [Op.or]: [
+          sequelize.where(
+            sequelize.fn("LOWER", sequelize.col("User.name")),
+            { [Op.like]: `%${search.toLowerCase()}%` }
+          ),
+          sequelize.where(
+            sequelize.fn("LOWER", sequelize.col("User.email")),
+            { [Op.like]: `%${search.toLowerCase()}%` }
+          ),
+          sequelize.where(
+            sequelize.fn("LOWER", sequelize.col("User.role")),
+            { [Op.like]: `%${search.toLowerCase()}%` }
+          ),
+        ],
+      };
+    }
+
+    const queryOptions = {
+      distinct: true,
+      where: whereCondition,
+      order: [[safeSortBy, order]], 
+
+      include: [
+        {
+          model: UserEducation,
+          as: "educations",
+          attributes: { exclude: ["user_id"] },
+          separate: true,
+          required: false,
+        },
+        {
+          model: Experience,
+          as: "experiences",
+          attributes: { exclude: ["user_id"] },
+          separate: true,
+          required: false,
+          include: [
+            {
+              model: Project,
+              as: "projects",
+              attributes: { exclude: ["exp_id", "project_id"] },
+              separate: true,
+              required: false,
+            },
+          ],
+        },
+      ],
+    };
+
+    if (isPagination) {
+      queryOptions.limit = limit;
+      queryOptions.offset = (page - 1) * limit;
+    }
+
+    const { count, rows } = await User.findAndCountAll(queryOptions);
 
     if (!rows || rows.length === 0) {
       return response.error(res, 404, "No users found");
     }
 
     const users = rows.map(user => ({
-      ...user.toJSON(), // convert Sequelize object to plain JS
-      profile_picture: buildImageUrl(req.baseUrlFull, upload.profile,user.profile_picture)
+      ...user.toJSON(),
+      profile_picture: buildImageUrl(
+        req.baseUrlFull,
+        upload.profile,
+        user.profile_picture
+      ),
     }));
 
+    if (isPagination) {
+      return response.success(res, "Users fetched successfully", {
+        users,
+        pagination: {
+          totalUsers: count,
+          currentPage: page,
+          pageSize: limit,
+          totalPages: Math.ceil(count / limit),
+          hasNextPage: page * limit < count,
+          hasPrevPage: page > 1,
+        },
+      });
+    }
+
     return response.success(res, "Users fetched successfully", users);
-  }
-  catch (error) {
+
+  } catch (error) {
     console.error(error);
     return response.error(res, 500, "Internal server error");
   }
 };
 
+
 //Get user by id
 exports.getUserById = async(req, res) => {
   try{
-    const {user_id} = req.params; //Url me se user_id extract krna
+    const {user_id} = req.params;   //Url me se user_id extract krna
     const user = await User.findOne({
       where: { user_id },
       include:[{
@@ -88,7 +199,7 @@ exports.getUserById = async(req, res) => {
           attributes:{exclude:["exp_id","project_id"]}         
         }]
       }],
-    });
+    });   
     if(!user){
       return response.error(res,404,`No user with ID ${user_id} is available.`)
     }
@@ -132,7 +243,7 @@ exports.addUser = async(req,res) =>{
       console.error(err);
       return response.error(res, 500, "Internal server error");
     }
-};
+}; 
   
 //Update Users
 exports.updateUser = async (req,res) =>{

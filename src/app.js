@@ -26,7 +26,7 @@ Object.values(models).forEach((model) => {
   if (model.relations) {
     model.relations(models);
   }
-});
+}); 
 
 const baseUrlMiddleware = require("./middleware/baseUrl.middleware");
 app.use(baseUrlMiddleware);
