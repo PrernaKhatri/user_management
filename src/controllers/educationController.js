@@ -9,42 +9,84 @@ const response = require("../common/response");
 const { deleteFile } = require("../common/deleteImage.helper");
 const { buildImageUrl } = require("../common/fileUrl.helper");
 const upload = require("../common/uploadConstants");
-
+const {Op} = require("sequelize");
+const sequelize = require("../config/sequelize");
 
 //Get education
-exports.getUserEducation = async(req,res) =>{
-  try{
-
+exports.getUserEducation = async (req, res) => {
+  try {
     const user_id = req.params.user_id;
+    const search = req.query.search?.trim();
+    const sortBy = req.query.sortBy || "passing_year";
+    const order = req.query.order === "ASC" ? "ASC" : "DESC";
+
+    const sortableFields = ["user_id","education_level","institution_name","passing_year","percentage","degree_picture",];
+
+    const safeSortBy = sortableFields.includes(sortBy)? sortBy : "passing_year";
 
     const user = await User.findOne({
-      where: { user_id }
+      where: { user_id },
     });
 
-    if(!user){
-      return response.error(res,404,"User not found");
+    if (!user) {
+      return response.error(res, 404, "User not found");
+    }
+
+    let whereCondition = { user_id };
+
+    if (search) {
+      whereCondition = {
+        [Op.and]: [
+          { user_id },
+          {
+            [Op.or]: [
+              sequelize.where(
+                sequelize.fn("LOWER", sequelize.col("education_level")),
+                { [Op.like]: `%${search.toLowerCase()}%` }
+              ),
+              sequelize.where(
+                sequelize.fn("LOWER", sequelize.col("institution_name")),
+                { [Op.like]: `%${search.toLowerCase()}%` }
+              ),
+            ],
+          },
+        ],
+      };
     }
 
     const education = await UserEducation.findAll({
-      where: { user_id }
+      where: whereCondition,
+      order: [[safeSortBy, order]],
     });
 
-    if(!education ||education.length === 0){
-      return response.success(res,"No education details found for the user",[]);
+    if (!education || education.length === 0) {
+      return response.success(
+        res,
+        "No education details found for the user",
+        []
+      );
     }
 
-    const result = education.map(item =>({
+    const result = education.map(item => ({
       ...item.toJSON(),
-      degree_picture: buildImageUrl(req.baseUrlFull,upload.degree,item.degree_picture)
+      degree_picture: buildImageUrl(
+        req.baseUrlFull,
+        upload.degree,
+        item.degree_picture
+      ),
     }));
 
-    return response.success(res,"Education details fetched successfully!",result);
-  }
-  catch(err){
+    return response.success(
+      res,
+      "Education details fetched successfully!",
+      result
+    );
+
+  } catch (err) {
     console.error(err);
-    return response.error(res,500,"Internal server error")
+    return response.error(res, 500, "Internal server error");
   }
-}
+};
 
 //Add education
 exports.addEducation = async(req,res) =>{

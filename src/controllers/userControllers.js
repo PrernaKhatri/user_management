@@ -11,57 +11,10 @@ const { buildImageUrl } = require("../common/fileUrl.helper");
 const upload = require("../common/uploadConstants");
 const {Op} = require("sequelize");
 const sequelize = require("../config/sequelize");
-// const UserEducation = require("../models/User_Education");
 const { User, UserEducation,Experience, Project} = sequelize.models;
 
 
-//Get all users
-// exports.getAllUsers = async (req, res) => {
-//   try {
-//     const rows = await User.findAll({
-      
-//       include:[{
-//         model : UserEducation,
-//         as: "educations",
-//         attributes : {exclude : ["user_id"]},
-//         separate: true,
-//         required: false, 
-//       },
-//       {
-//         model: Experience,
-//         as: "experiences",
-//         separate: true,
-//         required: false,
-//         attributes:{exclude:["user_id"]},    
-//         include:{
-//           model: Project,
-//           as: "projects",
-//           separate: true, 
-//           required:false, 
-//           attributes:{exclude:["exp_id","project_id"]}         
-//         }
-//       }],
-//       logging : console.log
-//     });
-
-//     if (!rows || rows.length === 0) {
-//       return response.error(res, 404, "No users found");
-//     }
-
-//     const users = rows.map(user => ({
-//       ...user.toJSON(), // convert Sequelize object to plain JS
-//       profile_picture: buildImageUrl(req.baseUrlFull, upload.profile,user.profile_picture)
-//     }));
-
-//     return response.success(res, "Users fetched successfully", users);
-//   }
-//   catch (error) {
-//     console.error(error);
-//     return response.error(res, 500, "Internal server error");
-//   }
-// };
-
-
+//Get all users  
 exports.getAllUsers = async (req, res) => {
   try {
 
@@ -71,13 +24,17 @@ exports.getAllUsers = async (req, res) => {
 
     const search = req.query.search?.trim();
 
+    const joinedYear = req.query.joined_year;
+    const joinedMonth = req.query.joined_month;
+    const joined = req.query.joined;
+
     const sortBy = req.query.sortBy || "user_id";
     const order = req.query.order === "ASC" ? "ASC" : "DESC";
 
     const sortableFields = ["user_id", "name", "email", "role", "joining_date"];
     const safeSortBy = sortableFields.includes(sortBy) ? sortBy : "user_id";
 
-    let whereCondition = {};
+    let whereCondition = {[Op.and]: []};
     if (search) {
       whereCondition = {
         [Op.or]: [
@@ -96,6 +53,35 @@ exports.getAllUsers = async (req, res) => {
         ],
       };
     }
+
+    if (joined === "today") {
+      whereCondition[Op.and].push(
+        sequelize.where(
+          sequelize.fn("DATE", sequelize.col("joining_date")),
+          sequelize.fn("CURDATE")
+        )
+      );
+    }
+    if (joinedYear) {
+      whereCondition[Op.and].push(
+        sequelize.where(
+          sequelize.fn("YEAR", sequelize.col("joining_date")),
+          parseInt(joinedYear)
+        )
+      );
+    }
+    if (joinedMonth) {
+      whereCondition[Op.and].push(
+        sequelize.where(
+          sequelize.fn("MONTH", sequelize.col("joining_date")),
+          parseInt(joinedMonth)
+        )
+      );
+    }
+    if (whereCondition[Op.and].length === 0) {
+      delete whereCondition[Op.and];
+    }
+
 
     const queryOptions = {
       distinct: true,
@@ -127,6 +113,7 @@ exports.getAllUsers = async (req, res) => {
           ],
         },
       ],
+      
     };
 
     if (isPagination) {
