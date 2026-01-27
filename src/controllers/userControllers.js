@@ -1,17 +1,10 @@
-// const db = require("../config/db");
-// // const User = require("../models/User");
-// const Joi = require("joi");
-// const fs = require("fs");
-// const path = require("path");
-// const sequelize = require("../config/sequelize");
-
 const response = require("../common/response");
 const { deleteFile } = require("../common/deleteImage.helper"); 
 const { buildImageUrl } = require("../common/fileUrl.helper");
 const upload = require("../common/uploadConstants");
 const {Op} = require("sequelize");
 const sequelize = require("../config/sequelize");
-const { User, UserEducation,Experience, Project} = sequelize.models;
+const{models} = sequelize;
 
 
 //Get all users  
@@ -24,19 +17,19 @@ exports.getAllUsers = async (req, res) => {
 
     const search = req.query.search?.trim();
 
-    const joinedYear = req.query.joined_year;
-    const joinedMonth = req.query.joined_month;
+    const joinedYear = req.query.joining_year;
+    const joinedMonth = req.query.joining_month;
     const joined = req.query.joined;
 
     const sortBy = req.query.sortBy || "user_id";
     const order = req.query.order === "ASC" ? "ASC" : "DESC";
 
-    const sortableFields = ["user_id", "name", "email", "role", "joining_date"];
+    const sortableFields = ["user_id", "name","role", "joining_date"];
     const safeSortBy = sortableFields.includes(sortBy) ? sortBy : "user_id";
 
     let whereCondition = {[Op.and]: []};
     if (search) {
-      whereCondition = {
+      whereCondition[Op.and].push ({
         [Op.or]: [
           sequelize.where(
             sequelize.fn("LOWER", sequelize.col("User.name")),
@@ -51,7 +44,7 @@ exports.getAllUsers = async (req, res) => {
             { [Op.like]: `%${search.toLowerCase()}%` }
           ),
         ],
-      };
+      });
     }
 
     if (joined === "today") {
@@ -78,33 +71,40 @@ exports.getAllUsers = async (req, res) => {
         )
       );
     }
+    
     if (whereCondition[Op.and].length === 0) {
       delete whereCondition[Op.and];
     }
-
-
+    
     const queryOptions = {
       distinct: true,
       where: whereCondition,
-      order: [[safeSortBy, order]], 
+      order: [[safeSortBy, order]],
 
       include: [
         {
-          model: UserEducation,
+          model: models.UserEducation,
           as: "educations",
           attributes: { exclude: ["user_id"] },
           separate: true,
           required: false,
+          include:{
+            model: models.Subject,
+            as: "subjects",
+            attributes : {exclude:["education_id"]},
+            separate: true,
+            required: false
+          }
         },
         {
-          model: Experience,
+          model: models.Experience,
           as: "experiences",
           attributes: { exclude: ["user_id"] },
           separate: true,
           required: false,
           include: [
             {
-              model: Project,
+              model: models.Project,
               as: "projects",
               attributes: { exclude: ["exp_id", "project_id"] },
               separate: true,
@@ -112,8 +112,7 @@ exports.getAllUsers = async (req, res) => {
             },
           ],
         },
-      ],
-      
+      ],      
     };
 
     if (isPagination) {
@@ -121,19 +120,15 @@ exports.getAllUsers = async (req, res) => {
       queryOptions.offset = (page - 1) * limit;
     }
 
-    const { count, rows } = await User.findAndCountAll(queryOptions);
+    const { count, rows } = await models.User.findAndCountAll(queryOptions);
 
     if (!rows || rows.length === 0) {
       return response.error(res, 404, "No users found");
-    }
+    } 
 
     const users = rows.map(user => ({
       ...user.toJSON(),
-      profile_picture: buildImageUrl(
-        req.baseUrlFull,
-        upload.profile,
-        user.profile_picture
-      ),
+      profile_picture: buildImageUrl(req.baseUrlFull,upload.profile,user.profile_picture),
     }));
 
     if (isPagination) {
@@ -158,33 +153,39 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
-
 //Get user by id
 exports.getUserById = async(req, res) => {
   try{
     const {user_id} = req.params;   //Url me se user_id extract krna
-    const user = await User.findOne({
+    const user = await models.User.findOne({
       where: { user_id },
       include:[{
-        model : UserEducation,
+        model : models.UserEducation,
         as: "educations",
         attributes : {exclude : ["user_id"]},
         separate: true,
         required: false, 
+        include:{
+          model: models.Subject,
+          as: "subjects",
+          attributes: {exclude : ["education_id"]},
+          separate: true,
+          required: false,
+        }
       },
       {
-        model: Experience,
+        model: models.Experience,
         as: "experiences",
         separate: true,
         required: false,
         attributes:{exclude:["user_id"]},    
         include:[{
-          model: Project,
+          model: models.Project,
           as: "projects",
           separate: true, 
-          required:false, 
+          required:true, 
           attributes:{exclude:["exp_id","project_id"]}         
-        }]
+        }] 
       }],
     });   
     if(!user){

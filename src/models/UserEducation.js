@@ -46,10 +46,15 @@ const UserEducation = sequelize.define(
   }
 );
 
-UserEducation.relations = (models) => {
+UserEducation.associate = (models) => {
 
   UserEducation.belongsTo(models.User, {
     foreignKey: "user_id",
+  });
+  UserEducation.hasMany(models.Subject, {
+    foreignKey: "education_id",
+    as: "subjects",
+    onDelete: "CASCADE",
   });
 
 };

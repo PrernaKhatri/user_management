@@ -1,8 +1,3 @@
-// const db = require("../config/db");
-// const Joi = require("joi");
-// const path = require("path");
-// const fs = require("fs");
-
 const UserEducation = require("../models/UserEducation");
 const User = require("../models/User");
 const response = require("../common/response");
@@ -11,6 +6,7 @@ const { buildImageUrl } = require("../common/fileUrl.helper");
 const upload = require("../common/uploadConstants");
 const {Op} = require("sequelize");
 const sequelize = require("../config/sequelize");
+const {models} = sequelize;
 
 //Get education
 exports.getUserEducation = async (req, res) => {
@@ -20,11 +16,11 @@ exports.getUserEducation = async (req, res) => {
     const sortBy = req.query.sortBy || "passing_year";
     const order = req.query.order === "ASC" ? "ASC" : "DESC";
 
-    const sortableFields = ["user_id","education_level","institution_name","passing_year","percentage","degree_picture",];
+    const sortableFields = ["education_id","passing_year","percentage"];
 
     const safeSortBy = sortableFields.includes(sortBy)? sortBy : "passing_year";
 
-    const user = await User.findOne({
+    const user = await models.User.findOne({
       where: { user_id },
     });
 
@@ -32,39 +28,39 @@ exports.getUserEducation = async (req, res) => {
       return response.error(res, 404, "User not found");
     }
 
-    let whereCondition = { user_id };
+    let whereCondition = {[Op.and]: [{ user_id }]};
 
     if (search) {
-      whereCondition = {
-        [Op.and]: [
-          { user_id },
-          {
-            [Op.or]: [
-              sequelize.where(
-                sequelize.fn("LOWER", sequelize.col("education_level")),
-                { [Op.like]: `%${search.toLowerCase()}%` }
-              ),
-              sequelize.where(
-                sequelize.fn("LOWER", sequelize.col("institution_name")),
-                { [Op.like]: `%${search.toLowerCase()}%` }
-              ),
-            ],
-          },
+      whereCondition[Op.and].push({
+        [Op.or]: [
+          sequelize.where(
+            sequelize.fn("LOWER", sequelize.col("education_level")),
+            { [Op.like]: `%${search.toLowerCase()}%` }
+          ),
+          sequelize.where(
+            sequelize.fn("LOWER", sequelize.col("institution_name")),
+            { [Op.like]: `%${search.toLowerCase()}%` }
+          ),
         ],
-      };
+      });
     }
 
-    const education = await UserEducation.findAll({
+    const education = await models.UserEducation.findAll({
       where: whereCondition,
       order: [[safeSortBy, order]],
+      include: [
+        {
+          model: models.Subject,
+          as: "subjects",
+          attributes: { exclude: ["education_id"] },
+          separate: true,
+          required: false,
+        },
+      ],
     });
 
     if (!education || education.length === 0) {
-      return response.success(
-        res,
-        "No education details found for the user",
-        []
-      );
+      return response.success(res,"No education details found for the user",[]);
     }
 
     const result = education.map(item => ({
@@ -76,11 +72,7 @@ exports.getUserEducation = async (req, res) => {
       ),
     }));
 
-    return response.success(
-      res,
-      "Education details fetched successfully!",
-      result
-    );
+    return response.success(res,"Education details fetched successfully!",result);
 
   } catch (err) {
     console.error(err);

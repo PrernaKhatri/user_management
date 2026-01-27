@@ -47,7 +47,7 @@ const User = sequelize.define(
   }
 );
 
-User.relations = (models) => {
+User.associate = (models) => {
   User.hasMany(models.UserEducation, {
     foreignKey: "user_id",
     as: "educations",

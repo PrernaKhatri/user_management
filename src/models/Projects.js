@@ -26,7 +26,7 @@ const Project = sequelize.define(
   }
 );
 
-Project.relations = (models) => {
+Project.associate = (models) => {
   Project.belongsTo(models.Experience, {
     foreignKey: "exp_id",
     as: "experience",
