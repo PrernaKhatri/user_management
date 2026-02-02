@@ -24,7 +24,7 @@ exports.getAllUsers = async (req, res) => {
     const sortBy = req.query.sortBy || "user_id";
     const order = req.query.order === "ASC" ? "ASC" : "DESC";
 
-    const sortableFields = ["user_id", "name","role", "joining_date"];
+    const sortableFields = ["user_id","name","role","joining_date"];
     const safeSortBy = sortableFields.includes(sortBy) ? sortBy : "user_id";
 
     let whereCondition = {[Op.and]: []};
