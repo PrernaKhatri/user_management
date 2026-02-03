@@ -39,25 +39,8 @@ const userSchema = new mongoose.Schema(
 
   },
   {
-    timestamps: false,
-    versionKey : false,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
-    id : false
+    timestamps: false
   }
 );
-
-userSchema.virtual("educations", {
-  ref: "UserEducation",        
-  localField: "_id",           
-  foreignField: "user_id"      
-});
-
-userSchema.virtual("experiences", {
-  ref: "Experience",
-  localField: "_id",
-  foreignField: "user_id"
-});
-
 
 module.exports = mongoose.model("User", userSchema);
