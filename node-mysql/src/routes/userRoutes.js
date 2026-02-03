@@ -30,7 +30,6 @@ router.delete("/users/:user_id", validate(userIdParamSchema, "params"),userContr
 //Update profile
 router.patch("/users/:user_id/profile_picture",uploadProfilePicture,userController.updateProfilePicture);
 
-
 //Delete Profile
 router.delete("/users/:user_id/profile_picture",validate(userIdParamSchema, "params"),userController.deleteProfilePicture);
 
