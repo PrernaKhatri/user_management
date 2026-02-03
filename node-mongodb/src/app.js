@@ -16,10 +16,10 @@ app.use(baseUrlMiddleware);
 
 
 const userRoutes = require("./routes/userRoutes");
-// const educationRoutes = require("./routes/educationRoutes");
+const educationRoutes = require("./routes/educationRoutes");
 
 app.use("/api", userRoutes);
-// app.use("/api", educationRoutes);
+app.use("/api", educationRoutes);
 
 app.get("/", (req, res) => {
     res.send("MongoDB User Management API running");

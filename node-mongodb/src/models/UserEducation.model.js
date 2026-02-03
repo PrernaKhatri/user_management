@@ -40,4 +40,12 @@ const userEducationSchema = new mongoose.Schema(
   }
 );
 
+
+userEducationSchema.virtual("subjects", {
+  ref: "Subject",
+  localField: "_id",
+  foreignField: "education_id"
+});
+
+
 module.exports = mongoose.model("UserEducation", userEducationSchema);

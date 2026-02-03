@@ -14,8 +14,26 @@ const uploadProfilePicture = createUploader({
 //Get all users
 router.get("/users", userController.getAllUsers);
 
+//Get user by id
+router.get("/users/:user_id", validate(userIdParamSchema, "params"),userController.getUserById);
+
 //Add user
 router.post("/users", uploadProfilePicture, validate(createUserSchema),userController.addUser);
+
+//Update user
+router.put("/users/:user_id", validate(userIdParamSchema, "params"),
+  validate(updateUserSchema),userController.updateUser);
+
+//Delete user
+router.delete("/users/:user_id", validate(userIdParamSchema, "params"),userController.deleteUser);
+
+//Update profile
+router.put("/users/:user_id/profile_picture",uploadProfilePicture,userController.updateProfilePicture);
+
+//Delete Profile
+router.delete("/users/:user_id/profile_picture",validate(userIdParamSchema, "params"),userController.deleteProfilePicture);
+
+module.exports = router;
 
 
 module.exports = router;
