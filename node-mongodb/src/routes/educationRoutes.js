@@ -34,11 +34,8 @@ router.delete("/education/:education_id", educationController.deleteEducation);
 
 //Upload/Update degree picture
 router.put(
-  "/education/:education_id/degree_picture",
-  validate(educationIdParamSchema, "params"),
-  uploadDegreePicture,
-  educationController.uploadDegreePicture
-);
+  "/education/:education_id/degree_picture", validate(educationIdParamSchema, "params"), uploadDegreePicture,
+  educationController.uploadDegreePicture);
 
 // Delete degree picture only
 router.delete(

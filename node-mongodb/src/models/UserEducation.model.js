@@ -36,7 +36,9 @@ const userEducationSchema = new mongoose.Schema(
   },
   {
     timestamps: false,
-    
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+    id : false
   }
 );
 

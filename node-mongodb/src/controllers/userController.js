@@ -1,39 +1,49 @@
-const User = require("../models/User.model");
 const response = require("../common/response");
 const { deleteFile } = require("../common/deleteImage.helper"); 
 const { buildImageUrl } = require("../common/fileUrl.helper");
 const upload = require("../common/uploadConstants");
+const User = require("../models/User.model");
 const UserEducation = require("../models/UserEducation.model");
 const Experience = require("../models/Experience.model");
 const Subjects = require("../models/Subjects.model");
+const buildQueryFeatures = require("../common/queryFeatures");
 
 //Get all users 
 exports.getAllUsers = async (req, res) => {
-    try {
-      const users = await User.find()
-      .populate({
-        path: "educations",
-        populate:{
-          path : "subjects"
-        }
-      })
-      .populate("experiences");
+  try {
 
-      if (!users || users.length === 0) {
-        return response.error(res, 404, "No users found");
-      }
+    const { query, pagination } = buildQueryFeatures({
+      model: User,
+      queryParams: req.query,
+      searchFields: ["name", "email", "role"],
+      populate: [
+        {
+          path: "educations",
+          populate: { path: "subjects" }
+        },
+        { path: "experiences" }
+      ]
+    });
 
-      const result = users.map(user => ({
-        ...user.toObject(),profile_picture : buildImageUrl(req.baseUrlFull,upload.profile,user.profile_picture)  
-      }))
-  
-      return response.success(res, "Users fetched successfully", result);
-  
-    } catch (error) {
-      console.error(error);
-      return response.error(res, 500, "Internal server error");
+    const users = await query;
+
+    if (!users || users.length === 0) {
+      return response.error(res, 404, "No users found");
     }
-  };
+
+    const result = users.map(user => ({...user.toObject(),
+      profile_picture: buildImageUrl(req.baseUrlFull, upload.profile,
+      user.profile_picture)
+    }));
+
+    return response.success(res, "Users fetched successfully", {
+      users: result,pagination});
+
+  } catch (error) {
+    console.error(error);
+    return response.error(res, 500, "Internal server error");
+  }
+};
 
 //Get user by id
 exports.getUserById = async (req, res) => {
@@ -97,7 +107,7 @@ exports.addUser = async (req, res) => {
     }
   };
 
-  //Update user
+//Update user
   exports.updateUser = async (req,res) => {
     try{
       const {user_id} = req.params;
@@ -123,7 +133,7 @@ exports.addUser = async (req, res) => {
     }
   }
 
-  //delete user 
+//delete user 
   exports.deleteUser = async(req,res) => {
     try{
       const {user_id} = req.params;
@@ -148,7 +158,7 @@ exports.addUser = async (req, res) => {
     }
   }
 
-  //Update profile picture
+//Update profile picture
 exports.updateProfilePicture = async (req, res) => {
   try {
     const { user_id } = req.params;

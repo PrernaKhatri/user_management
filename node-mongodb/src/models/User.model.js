@@ -41,8 +41,8 @@ const userSchema = new mongoose.Schema(
   {
     timestamps: false,
     toJSON: { virtuals: true },
-  toObject: { virtuals: true },
-  id : false
+    toObject: { virtuals: true },
+    id : false
   }
 );
 

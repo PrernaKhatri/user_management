@@ -213,7 +213,7 @@ exports.addUser = async(req,res) =>{
 
     const profile_picture = req.file ? req.file.filename : null;
 
-    const existingUser = await User.findOne({
+    const existingUser = await models.User.findOne({
       where: { email }
     });
 
@@ -222,7 +222,7 @@ exports.addUser = async(req,res) =>{
     return response.error(res, 409, "Email already exists");
     }
 
-    const newUser = await User.create({name,email,phone,role,
+    const newUser = await models.User.create({name,email,phone,role,
     joining_date,profile_picture});
 
     return response.created(res, "User created successfully", {user_id: newUser.user_id});
@@ -244,7 +244,7 @@ exports.updateUser = async (req,res) =>{
       return response.error(res, 400, "No data provided to update");
     }
 
-    const user = await User.findOne({
+    const user = await models.User.findOne({
       where: { user_id }
     });
 
@@ -252,7 +252,7 @@ exports.updateUser = async (req,res) =>{
       return response.error(res, 404, "User not found");
     }
 
-    await User.update(updateData, {
+    await models.User.update(updateData, {
       where: { user_id }
     });
 
@@ -270,7 +270,7 @@ exports.deleteUser = async (req, res) => {
   try {
     const {user_id} = req.params;
 
-    const user = await User.findOne({
+    const user = await models.User.findOne({
       where: { user_id }
     });
 
@@ -280,7 +280,7 @@ exports.deleteUser = async (req, res) => {
 
     deleteFile(upload.profile,user.profile_picture);
 
-    await User.destroy({
+    await models.User.destroy({
       where: { user_id }
     });
 
@@ -302,7 +302,7 @@ exports.updateProfilePicture = async(req,res) => {
       return response.error(res,400,"Profile picture is required");
     }
 
-    const user = await User.findOne({
+    const user = await models.User.findOne({
       where: { user_id }
     });
 
@@ -316,7 +316,7 @@ exports.updateProfilePicture = async(req,res) => {
 
     const ProfilePath = req.file.filename;
 
-    await User.update(
+    await models.User.update(
       { profile_picture: ProfilePath},
       { where: { user_id } }
     );
@@ -337,7 +337,7 @@ exports.deleteProfilePicture = async(req,res) => {
   try{
     const{user_id} = req.params;
 
-    const user = await User.findOne({
+    const user = await models.User.findOne({
       where: { user_id }
     });
 
@@ -351,7 +351,7 @@ exports.deleteProfilePicture = async(req,res) => {
 
     deleteFile(upload.profile, user.profile_picture);
 
-    await User.update(
+    await models.User.update(
       { profile_picture: null },
       { where: { user_id } }
     );

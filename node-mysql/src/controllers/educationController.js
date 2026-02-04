@@ -1,5 +1,5 @@
-const UserEducation = require("../models/UserEducation");
-const User = require("../models/User");
+// const UserEducation = require("../models/UserEducation");
+// const User = require("../models/User");
 const response = require("../common/response");
 const { deleteFile } = require("../common/deleteImage.helper");
 const { buildImageUrl } = require("../common/fileUrl.helper");
@@ -85,7 +85,7 @@ exports.addEducation = async(req,res) =>{
   try{
     const {user_id} = req.params;
 
-    const user = await User.findOne({
+    const user = await models.User.findOne({
       where: { user_id }
     });
 
@@ -97,7 +97,7 @@ exports.addEducation = async(req,res) =>{
 
     const degree_picture = req.file ? req.file.filename : null;
 
-    const education = await UserEducation.create({user_id,
+    const education = await models.UserEducation.create({user_id,
     education_level,institution_name,passing_year,percentage,degree_picture});
 
     return response.created(res,"Education added sucessfully",{education_id: education.education_id});
@@ -112,9 +112,13 @@ exports.addEducation = async(req,res) =>{
 exports.updateEducation = async (req, res) => {
   try {
     const { education_id } = req.params;
-    const updateData = req.body;
+    const updateData = req.body || {};
 
-    const education = await UserEducation.findOne({
+    if (Object.keys(updateData).length === 0) {
+      return response.error(res, 400, "No data provided to update");
+    }
+
+    const education = await models.UserEducation.findOne({
       where: { education_id }
     });
 
@@ -122,7 +126,7 @@ exports.updateEducation = async (req, res) => {
       return response.error(res, 404, "Education record not found");
     }
 
-    await UserEducation.update(updateData, {
+    await models.UserEducation.update(updateData, {
       where: { education_id }
     });
 
@@ -139,7 +143,7 @@ exports.deleteEducation = async (req, res) => {
   try {
     const { education_id } = req.params;
 
-    const education = await UserEducation.findOne({
+    const education = await models.UserEducation.findOne({
       where: { education_id }
     });
 
@@ -149,7 +153,7 @@ exports.deleteEducation = async (req, res) => {
 
     deleteFile(upload.degree,education.degree_picture);
 
-    await UserEducation.destroy({
+    await models.UserEducation.destroy({
       where: { education_id }
     });
 
@@ -170,7 +174,7 @@ exports.uploadDegreePicture = async (req, res) => {
       return response.error(res, 400, "Degree picture is required");
     }
 
-    const education = await UserEducation.findOne({
+    const education = await models.UserEducation.findOne({
       where: { education_id }
     });
 
@@ -184,7 +188,7 @@ exports.uploadDegreePicture = async (req, res) => {
 
     const degreePath = req.file.filename;
 
-    await UserEducation.update(
+    await models.UserEducation.update(
       { degree_picture: degreePath },
       { where: { education_id } }
     );
@@ -208,7 +212,7 @@ exports.deleteDegreePicture = async (req, res) => {
   try {
     const { education_id } = req.params;
 
-    const education = await UserEducation.findOne({
+    const education = await models.UserEducation.findOne({
       where: {
         education_id
       }
@@ -224,7 +228,7 @@ exports.deleteDegreePicture = async (req, res) => {
 
     deleteFile(upload.degree,education.degree_picture);
 
-    await UserEducation.update(
+    await models.UserEducation.update(
       { degree_picture: null },
       {
         where: {

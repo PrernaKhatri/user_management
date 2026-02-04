@@ -4,6 +4,9 @@ const response = require("../common/response");
 const { deleteFile } = require("../common/deleteImage.helper");
 const { buildImageUrl } = require("../common/fileUrl.helper");
 const upload = require("../common/uploadConstants");
+const Subjects = require("../models/Subjects.model");
+const buildQueryFeatures = require("../common/queryFeatures");
+
 
 //Add education
 exports.addEducation = async(req,res) => {
@@ -30,41 +33,43 @@ exports.addEducation = async(req,res) => {
         console.error(error);
         return response.error(res,500,"Internal server error");
     }
-}
+};
 
 //Get education
 exports.getUserEducation = async (req, res) => {
-    try {
-      const { user_id } = req.params;
+  try {
+    const { user_id } = req.params;
 
-      const user = await User.findById(user_id);
-  
-      if (!user) {
-        return response.error(res, 404, "User not found");
-      }
-
-      const education = await UserEducation.find({ user_id });
-  
-      if (!education || education.length === 0) {
-        return response.success(res,"No education details found for the user",[]);
-      }
-  
-      const result = education.map(item => ({
-        ...item.toObject(),
-        degree_picture: buildImageUrl(req.baseUrlFull, upload.degree, item.degree_picture)
-      }));
-  
-      return response.success(
-        res,"Education details fetched successfully!",result
-      );
-  
-    } catch (err) {
-      console.error(err);
-      return response.error(res, 500, "Internal server error");
+    const user = await User.findById(user_id);
+    if (!user) {
+      return response.error(res, 404, "User not found");
     }
-  };
 
-  //Update education
+    const { query, pagination } = buildQueryFeatures({
+      model: UserEducation,queryParams: req.query,baseFilter: { user_id },searchFields: ["education_level", "institution_name"],
+      populate: ["subjects"]
+    });
+
+    const educations = await query;
+
+    if (!educations || educations.length === 0) {
+      return response.success(res, "No education details found for the user", {education: [],pagination});
+    }
+
+    const result = educations.map(item => ({
+      ...item.toObject(),degree_picture: buildImageUrl(req.baseUrlFull,
+        upload.degree,item.degree_picture)
+    }));
+
+    return response.success(res, "Education details fetched successfully!", {education: result,pagination});
+
+  } catch (error) {
+    console.error(error);
+    return response.error(res, 500, "Internal server error");
+  }
+};
+
+//Update education
   exports.updateEducation = async (req, res) => {
     try {
       const { education_id } = req.params;
@@ -160,7 +165,7 @@ exports.uploadDegreePicture = async (req, res) => {
     }
   };
 
-  //Delete degree
+//Delete degree
   exports.deleteDegreePicture = async (req, res) => {
     try {
       const { education_id } = req.params;
